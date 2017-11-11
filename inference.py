@@ -429,6 +429,11 @@ class JointParticleFilter:
         weight with each position) is incorrect and may produce errors.
         """
         "*** YOUR CODE HERE ***"
+        ghostLegalPossition = list(itertools.product(self.legalPositions, repeat = self.numGhosts))
+        random.shuffle(ghostLegalPossition)
+        self.particles = []
+        for i in range(self.numParticles):
+            self.particles.append(ghostLegalPossition[ i % len(ghostLegalPossition)])
 
     def addGhostAgent(self, agent):
         """
@@ -476,6 +481,29 @@ class JointParticleFilter:
         emissionModels = [busters.getObservationDistribution(dist) for dist in noisyDistances]
 
         "*** YOUR CODE HERE ***"
+        weights = util.Counter()
+        # weight
+        for p in self.particles:
+            tempWeight = 1.0
+            for i in range(self.numGhosts):
+                if noisyDistances[i] == None:
+                    self.particles[i] = self.getBeliefDistribution(p, i)
+                else:
+                    trueDistance = util.manhattanDistance(p[i], pacmanPosition)
+                    tempWeight *= emissionModels[i][trueDistance]
+            weights[p] += tempWeight
+
+        # resample
+        if weights.totalCount() == 0:
+            self.initializeParticles()
+            for i in range(self.numGhosts):
+                if noisyDistances[i] is None:
+                    for j in range(len(self.particles)):
+                        self.particles[j] = self.getParticleWithGhostInJail(self.particles[j], i)
+        else:
+            weights.normalize()
+            for i in range(len(self.particles)):
+                self.particles[i] = util.sample(weights)
 
     def getParticleWithGhostInJail(self, particle, ghostIndex):
         """
@@ -543,7 +571,12 @@ class JointParticleFilter:
 
     def getBeliefDistribution(self):
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # util.raiseNotDefined()
+        beliefs = util.Counter()
+        for ptcs in self.particles:
+            beliefs[ptcs] += 1.0
+        beliefs.normalize()
+        return beliefs
 
 # One JointInference module is shared globally across instances of MarginalInference
 jointInference = JointParticleFilter()
